@@ -13,20 +13,26 @@ namespace DataRecovery
 {
     class Program
     {
-        public static void ConvertToJson(List<Data> data, int i)
+        static void Main(string[] args)
+        {
+            //Execute(24, 31, "k");
+            //Execute(1, 24, "t");
+            Execute(22, 24, "t");
+
+        }
+        public static void ConvertToJson(List<Data> data, int i, string month)
         {
             string json = JsonConvert.SerializeObject(data.ToArray());
 
             //write string o file
-            System.IO.File.WriteAllText(@"C:\Users\pooya\Desktop\path"+i+".txt", json);
-
+            System.IO.File.WriteAllText(@"C:\Users\pooya\Desktop\Result\path"+ i + month +".txt", json);
         }
-        static void Main(string[] args)
+        public static void Execute(int first, int last, string month)
         {
-            for (int k = 24; k <= 28; k++)
+            for (int k = first; k <= last; k++)
             {
                 Excel.Application xlApp = new Excel.Application();
-                Excel.Workbook xlWorkbook = xlApp.Workbooks.Open(@"C:\Users\pooya\Desktop\" + k + ".xls");
+                Excel.Workbook xlWorkbook = xlApp.Workbooks.Open(@"C:\Users\pooya\Desktop\Send\" + k + month+".xls");
 
                 Excel._Worksheet xlWorksheet = xlWorkbook.Sheets[1];
                 Excel.Range xlRange = xlWorksheet.UsedRange;
@@ -39,14 +45,14 @@ namespace DataRecovery
                     {
                         if (j == 1)
                             Console.Write("\r\n");
-
+                        
                         if (xlRange.Cells[i, j] != null && xlRange.Cells[i, j].Value2 != null)
                         {
                             string command = (string)xlRange.Cells[i, j].Value2.ToString();
                             string partialConmmand = "";
                             if (command.Length >= 20)
                                 partialConmmand = command.Substring(0, 20);
-                            if (j == 2 && !partialConmmand.Equals(""))
+                            if (j == 2 && !partialConmmand.Equals("") && !xlRange.Cells[i, 3].Value2.ToString().Equals("10009099099099"))
                             {
                                 if (partialConmmand.Equals("با سلام\nبه رسا خوش آ"))
                                 {
@@ -120,7 +126,7 @@ namespace DataRecovery
                                     data = Verify(data, (string)xlRange.Cells[i, 2].Value2.ToString(),
                                        (string)xlRange.Cells[i, 4].Value2.ToString(), (string)xlRange.Cells[i, 5].Value2.ToString());
                                 }
-                                else if (partialConmmand.Equals("سامانه رسا\nپزشک گرام"))
+                                else if (partialConmmand.Equals("سامانه رسا\nپزشک گرام") || partialConmmand.Equals("سامانه رسا\nهمکار گرا"))
                                 {
                                     counter++;
                                     Console.WriteLine("Doctor Periodic Report");
@@ -135,7 +141,7 @@ namespace DataRecovery
                         }
                     }
                 }
-                ConvertToJson(data, k);
+                ConvertToJson(data, k, month);
                 Console.WriteLine(counter);
             }
         }
@@ -144,7 +150,13 @@ namespace DataRecovery
             int userCodeIndex = text.IndexOf("کد کاربری");
             int passwordIndex = text.IndexOf("رمز عبور");
             int lastPasswordIndex = text.IndexOf("برای ارتباط با پزشک خود");
-            
+
+
+            if (lastPasswordIndex == -1)
+            {
+                lastPasswordIndex = text.IndexOf("در نظر داشته باشید");
+            }
+
             int userCodeLength = passwordIndex - userCodeIndex - 12;
             int passwordLength = lastPasswordIndex - passwordIndex - 12;
 
@@ -176,6 +188,7 @@ namespace DataRecovery
                 ConversationLength = "",
                 Status = ""
             });
+            
             return data;
         }
         public static List<Data> CallBockWithoutName(List<Data> data, string text, string number, string date)
@@ -347,16 +360,29 @@ namespace DataRecovery
 
         public static List<Data> CallBlockWithName(List<Data> data, string text, string number, string date)
         {
-            int doctorCodeIndex = text.IndexOf("کد رسای پزشک شما");
-            int doctorNameIndex = text.IndexOf("دکتر");
-            int lastDoctorNameIndex = text.IndexOf("تنها");
+            string doctorCode;
+            string doctorName;
+            if (text.IndexOf(")") == -1)
+            {
+                int doctorCodeIndex = text.IndexOf("کد رسای پزشک شما");
+                int doctorNameIndex = text.IndexOf("دکتر");
+                int lastDoctorNameIndex = text.IndexOf("تنها");
+                int lastDoctorCodeIndex = text.LastIndexOf("است");
 
-            int doctorCodeLength = 4;
-            int doctorNameLength = lastDoctorNameIndex - doctorNameIndex - 6;
+                int doctorCodeLength = lastDoctorCodeIndex - doctorCodeIndex - 18;
+                int doctorNameLength = lastDoctorNameIndex - doctorNameIndex - 6;
 
-            string doctorCode = text.Substring(doctorCodeIndex + 17, doctorCodeLength);
-            string doctorName = text.Substring(doctorNameIndex + 5, doctorNameLength);
+                doctorCode = text.Substring(doctorCodeIndex + 17, doctorCodeLength);
+                doctorName = text.Substring(doctorNameIndex + 5, doctorNameLength);
+            }
+            else
+            {
+                if(text.IndexOf("ایشان") != -1)
+                    return CallBlocked(data, text, number, date);
+                else
+                    return CallBlockedFirstTime(data, text, number, date);
 
+            }
             Console.WriteLine(doctorCode);
             Console.WriteLine(doctorName);
             data.Add(new Data
@@ -577,22 +603,38 @@ namespace DataRecovery
         }
         public static List<Data> DoctorPeriodicReport(List<Data> data, string text, string number, string date)
         {
+            int periodLengthSizeOffset = 19;
+            int periodLengthOffset = 18;
+            int conversationLengthOffset = 8;
             int periodLengthIndex = text.IndexOf("پزشک گرامی");
+            if (periodLengthIndex == -1)
+            {
+                periodLengthSizeOffset = 20;
+                periodLengthOffset = 19;
+                periodLengthIndex = text.IndexOf("همکار گرامی");
+            }
+               
             int lastPeriodLengthIndex = text.IndexOf("گذشته");
             int successfulCallIndex = text.IndexOf("تماس موفق");
             int failedCallIndex = text.IndexOf("تماس ناموفق");
             int conversationLengthIndex = text.IndexOf("بیماران");
             int unitIndex = text.IndexOf("دقیقه");
 
-            int periodLengthSize = lastPeriodLengthIndex - periodLengthIndex - 19;
+            int periodLengthSize = lastPeriodLengthIndex - periodLengthIndex - periodLengthSizeOffset;
             int successfulCallLength = successfulCallIndex - lastPeriodLengthIndex - 8; 
             int failedCallLength = failedCallIndex - successfulCallIndex - 13;
             int ConversationLengthSize = unitIndex - conversationLengthIndex - 9;
 
-            string periodLength = text.Substring(periodLengthIndex + 18, periodLengthSize);
+            if (text.IndexOf("نیز") != -1)
+            {
+                ConversationLengthSize -= 4;
+                conversationLengthOffset += 4;
+            }
+
+            string periodLength = text.Substring(periodLengthIndex + periodLengthOffset, periodLengthSize);
             string numberOfSuccessfulCall = text.Substring(lastPeriodLengthIndex + 6, successfulCallLength);
             string numberOfFailedCall = text.Substring(successfulCallIndex + 12, failedCallLength);
-            string conversationLenth = text.Substring(conversationLengthIndex + 8, ConversationLengthSize);
+            string conversationLenth = text.Substring(conversationLengthIndex + conversationLengthOffset, ConversationLengthSize);
             
             Console.WriteLine(periodLength);
             Console.WriteLine(numberOfSuccessfulCall);
@@ -619,6 +661,101 @@ namespace DataRecovery
                 NumberOfSuccessfulCall = numberOfSuccessfulCall,
                 NumberOfFailedCall = numberOfFailedCall,
                 ConversationLength = conversationLenth,
+                Status = ""
+            });
+            return data;
+        }
+        public static List<Data> CallBlockedFirstTime(List<Data> data, string text, string number, string date)
+        {
+            int doctorNameSizeOffset = 7;
+            int doctorNameOffset = 5;
+            int doctorNameIndex = text.IndexOf("دکتر");
+            if (doctorNameIndex == -1)
+            {
+                doctorNameIndex = text.IndexOf("تلفنی");
+                doctorNameSizeOffset = 11;
+                doctorNameOffset = 9;
+            }
+            int doctorCodeIndex = text.IndexOf("کد");
+            int lastDoctorCodeIndex = text.IndexOf("تنها");
+
+            int doctorCodeLength = lastDoctorCodeIndex - doctorCodeIndex - 5;
+            int doctorNameLength = doctorCodeIndex - doctorNameIndex - doctorNameSizeOffset;
+
+            string doctorCode = text.Substring(doctorCodeIndex + 3, doctorCodeLength);
+            string doctorName = text.Substring(doctorNameIndex + doctorNameOffset, doctorNameLength);
+
+            Console.WriteLine(doctorCode);
+            Console.WriteLine(doctorName);
+            data.Add(new Data
+            {
+                Type = "Call Blocked First Time",
+                Number = number,
+                Date = date,
+                UserCode = "",
+                Password = "",
+                MobileNumber = "",
+                VerificationCode = "",
+                DoctorCode = doctorCode,
+                DoctorName = doctorName,
+                Charge = "",
+                CallDurationHour = "",
+                CallDurationMinute = "",
+                CallDurationSecond = "",
+                Cost = "",
+                Credit = "",
+                PeriodLength = "",
+                NumberOfSuccessfulCall = "",
+                NumberOfFailedCall = "",
+                ConversationLength = "",
+                Status = ""
+            });
+            return data;
+        }
+        public static List<Data> CallBlocked(List<Data> data, string text, string number, string date)
+        {
+            int doctorNameSizeOffset = 6;
+            int doctorNameOffset = 5;
+            int doctorNameIndex = text.IndexOf("دکتر");
+            if (doctorNameIndex == -1)
+            {
+                doctorNameIndex = text.IndexOf("تلفنی");
+                doctorNameSizeOffset = 10;
+                doctorNameOffset = 9;
+            }
+            int doctorCodeIndex = text.IndexOf("کد ایشان");
+            int lastDoctorCodeIndex = text.IndexOf("را وارد");
+            int lastDoctorNameIndex = text.IndexOf("تنها");
+
+            int doctorCodeLength = lastDoctorCodeIndex - doctorCodeIndex - 12;
+            int doctorNameLength = lastDoctorNameIndex - doctorNameIndex - doctorNameSizeOffset;
+
+            string doctorCode = text.Substring(doctorCodeIndex + 10, doctorCodeLength);
+            string doctorName = text.Substring(doctorNameIndex + doctorNameOffset, doctorNameLength);
+
+            Console.WriteLine(doctorCode);
+            Console.WriteLine(doctorName);
+            data.Add(new Data
+            {
+                Type = "Call Blocked",
+                Number = number,
+                Date = date,
+                UserCode = "",
+                Password = "",
+                MobileNumber = "",
+                VerificationCode = "",
+                DoctorCode = doctorCode,
+                DoctorName = doctorName,
+                Charge = "",
+                CallDurationHour = "",
+                CallDurationMinute = "",
+                CallDurationSecond = "",
+                Cost = "",
+                Credit = "",
+                PeriodLength = "",
+                NumberOfSuccessfulCall = "",
+                NumberOfFailedCall = "",
+                ConversationLength = "",
                 Status = ""
             });
             return data;
