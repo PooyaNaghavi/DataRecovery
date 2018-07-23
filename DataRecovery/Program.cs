@@ -15,17 +15,19 @@ namespace DataRecovery
     {
         static void Main(string[] args)
         {
+          
+
             //Execute(24, 31, "k");
-            //Execute(1, 24, "t");
             Execute(22, 24, "t");
+            //Execute(22, 24, "t");
 
         }
         public static void ConvertToJson(List<Data> data, int i, string month)
         {
             string json = JsonConvert.SerializeObject(data.ToArray());
-
+            
             //write string o file
-            System.IO.File.WriteAllText(@"C:\Users\pooya\Desktop\Result\path"+ i + month +".txt", json);
+            System.IO.File.WriteAllText(@"C:\Users\pooya\Desktop\path"+ i + month +".txt", json);
         }
         public static void Execute(int first, int last, string month)
         {
@@ -36,6 +38,7 @@ namespace DataRecovery
 
                 Excel._Worksheet xlWorksheet = xlWorkbook.Sheets[1];
                 Excel.Range xlRange = xlWorksheet.UsedRange;
+                
                 int counter = 0;
 
                 List<Data> data = new List<Data>();
@@ -126,7 +129,7 @@ namespace DataRecovery
                                     data = Verify(data, (string)xlRange.Cells[i, 2].Value2.ToString(),
                                        (string)xlRange.Cells[i, 4].Value2.ToString(), (string)xlRange.Cells[i, 5].Value2.ToString());
                                 }
-                                else if (partialConmmand.Equals("سامانه رسا\nپزشک گرام") || partialConmmand.Equals("سامانه رسا\nهمکار گرا"))
+                                else if ((partialConmmand.Equals("سامانه رسا\nپزشک گرام") || partialConmmand.Equals("سامانه رسا\nهمکار گرا")))
                                 {
                                     counter++;
                                     Console.WriteLine("Doctor Periodic Report");
@@ -366,14 +369,23 @@ namespace DataRecovery
             {
                 int doctorCodeIndex = text.IndexOf("کد رسای پزشک شما");
                 int doctorNameIndex = text.IndexOf("دکتر");
+                int doctorNameOffset = 5;
+                int doctorNameSizeOffset = 6;
+                if (doctorNameIndex == -1)
+                {
+                    doctorNameIndex = text.IndexOf("پزشک شما");
+                    doctorNameOffset = 10;
+                    doctorNameSizeOffset = 11;
+
+                }
                 int lastDoctorNameIndex = text.IndexOf("تنها");
                 int lastDoctorCodeIndex = text.LastIndexOf("است");
 
                 int doctorCodeLength = lastDoctorCodeIndex - doctorCodeIndex - 18;
-                int doctorNameLength = lastDoctorNameIndex - doctorNameIndex - 6;
+                int doctorNameLength = lastDoctorNameIndex - doctorNameIndex - doctorNameSizeOffset;
 
                 doctorCode = text.Substring(doctorCodeIndex + 17, doctorCodeLength);
-                doctorName = text.Substring(doctorNameIndex + 5, doctorNameLength);
+                doctorName = text.Substring(doctorNameIndex + doctorNameOffset, doctorNameLength);
             }
             else
             {
